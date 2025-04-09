@@ -78,7 +78,7 @@ def main():
     # Load data
     df = load_data()
     if df.empty:
-        st.error("No data loaded. Please check your file format and ensure 'Bonds Data 2025.xlsx' is in the same directory.")
+        st.error("No data loaded. Please check your file format and ensure 'Bonds_Data_2025.xlsx' is in the same directory.")
         return
     
     # Sidebar filters

@@ -242,12 +242,12 @@ with tab2:
         row=1, col=1
     )
     
-    # Bar chart
+    # Bar chart - FIXED THE ERROR HERE
     rating_counts = filtered_df['Credit Rating'].value_counts().reset_index()
     fig.add_trace(
         go.Bar(
-            x=rating_counts['index'],
-            y=rating_counts['Credit Rating'],
+            x=rating_counts['Credit Rating'],  # Changed from 'index' to 'Credit Rating'
+            y=rating_counts['count'],
             name="Credit Rating",
             marker_color='#3498db'
         ),
@@ -276,31 +276,36 @@ with tab3:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# Bond Details Table
-st.markdown("### 📋 Bond Inventory")
+# Bond Details Table - FULL TABLE WITH ALL DETAILS
+st.markdown("### 📋 Complete Bond Inventory")
 st.dataframe(
     filtered_df[[
-        'Bond Type', 'Issuer Name', 'Coupon', 'Offer Yield', 'Years to Maturity', 
-        'Credit Rating', 'Secured / Unsecured', 'Interest Payment Frequency', 'Total Qty FV'
+        'ISIN', 'Issuer Name', 'Bond Type', 'Coupon', 'Offer Yield', 
+        'Years to Maturity', 'Credit Rating', 'Outlook', 'Secured / Unsecured',
+        'Special Feature', 'Interest Payment Frequency', 'Principal Redemption',
+        'Face Value', 'Total Qty', 'Total Qty FV', 'Redemption Date'
     ]].rename(columns={
         'Coupon': 'Coupon Rate',
         'Offer Yield': 'Yield',
         'Years to Maturity': 'Maturity (Yrs)',
         'Secured / Unsecured': 'Security',
+        'Special Feature': 'Features',
         'Interest Payment Frequency': 'Payment Freq.',
-        'Total Qty FV': 'Total FV (₹)'
+        'Total Qty FV': 'Total FV (₹)',
+        'Redemption Date': 'Maturity Date'
     }).style.format({
         'Coupon Rate': '{:.2%}',
         'Yield': '{:.2%}',
         'Maturity (Yrs)': '{:.2f}',
-        'Total FV (₹)': '₹{:,.0f}'
+        'Total FV (₹)': '₹{:,.0f}',
+        'Face Value': '₹{:,.0f}'
     }).background_gradient(cmap='Blues', subset=['Yield']),
     use_container_width=True,
     height=600
 )
 
 # Bond Details Expander
-st.markdown("### 🔍 Bond Details")
+st.markdown("### 🔍 Detailed Bond Information")
 for _, row in filtered_df.iterrows():
     with st.expander(f"{row['Issuer Name']} - {row['ISIN']} (₹{row['Total Qty FV']:,.0f})"):
         col1, col2, col3 = st.columns(3)

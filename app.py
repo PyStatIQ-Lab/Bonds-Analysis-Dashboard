@@ -610,6 +610,15 @@ def load_data():
 
     df = pd.DataFrame(data, columns=columns)
     
+    # Convert coupon values to numeric
+    def clean_coupon(value):
+        if isinstance(value, str):
+            # Remove % sign if present and convert to float
+            return float(value.replace('%', '')) / 100
+        return value
+    
+    df['Coupon'] = df['Coupon'].apply(clean_coupon)
+    
     # Convert date strings to datetime objects
     df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True)
     

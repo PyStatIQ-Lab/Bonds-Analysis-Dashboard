@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import plotly.express as px
 
 # Load the bond data
 data = [
@@ -50,15 +51,15 @@ def categorize_bond(row):
 df['Bond Type'] = df.apply(categorize_bond, axis=1)
 
 # Streamlit app
-st.set_page_config(layout="wide", page_title="SLIPS & FLIPS Bonds Dashboard")
+st.set_page_config(layout="wide", page_title="SLIPS & FLIPS Bonds Dashboard", page_icon="📊")
 
-st.title("SLIPS & FLIPS Bonds Dashboard")
+st.title("📊 SLIPS & FLIPS Bonds Dashboard")
 
 # Sidebar filters
-st.sidebar.header("Filter Bonds")
+st.sidebar.header("🔍 Filter Bonds")
 
 # Bond type selection
-bond_type = st.sidebar.radio("Select Bond Type", ["All", "SLIPS", "FLIPS"])
+bond_type = st.sidebar.radio("Select Bond Type", ["All", "SLIPS", "FLIPS"], index=0)
 
 # Holding time filter
 holding_time = st.sidebar.slider(
@@ -66,7 +67,8 @@ holding_time = st.sidebar.slider(
     min_value=0.0, 
     max_value=5.0, 
     value=3.0, 
-    step=0.25
+    step=0.25,
+    help="Filter bonds by their remaining time to maturity"
 )
 
 # Risk level filter
@@ -74,7 +76,8 @@ risk_levels = sorted(df['Credit Rating'].unique())
 selected_risk = st.sidebar.multiselect(
     "Credit Rating", 
     options=risk_levels, 
-    default=risk_levels
+    default=risk_levels,
+    help="Select one or more credit ratings to filter bonds"
 )
 
 # Coupon rate filter
@@ -83,7 +86,17 @@ min_coupon, max_coupon = st.sidebar.slider(
     min_value=0.0,
     max_value=15.0,
     value=(5.0, 12.0),
-    step=0.1
+    step=0.1,
+    help="Filter bonds by their coupon rate range"
+)
+
+# Additional filters
+secured_options = df['Secured / Unsecured'].unique()
+selected_secured = st.sidebar.multiselect(
+    "Security Type",
+    options=secured_options,
+    default=secured_options,
+    help="Filter by secured or unsecured bonds"
 )
 
 # Apply filters
@@ -94,18 +107,20 @@ if bond_type != "All":
 
 filtered_df = filtered_df[filtered_df['Years to Maturity'] <= holding_time]
 filtered_df = filtered_df[filtered_df['Credit Rating'].isin(selected_risk)]
-filtered_df = filtered_df[(filtered_df['Coupon'] >= min_coupon/100) & (filtered_df['Coupon'] <= max_coupon/100)]
+filtered_df = filtered_df[(filtered_df['Coupon']*100 >= min_coupon) & (filtered_df['Coupon']*100 <= max_coupon)]
+filtered_df = filtered_df[filtered_df['Secured / Unsecured'].isin(selected_secured)]
 
 # Main display
-st.header("Available Bonds")
+st.header("📋 Available Bonds")
 
 # Metrics
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Bonds", len(filtered_df))
 col2.metric("Average Coupon", f"{filtered_df['Coupon'].mean()*100:.2f}%")
 col3.metric("Average Yield", f"{filtered_df['Offer Yield'].mean()*100:.2f}%")
+col4.metric("Average Maturity", f"{filtered_df['Years to Maturity'].mean():.2f} years")
 
-# Display the filtered dataframe
+# Display the filtered dataframe with styled formatting
 st.dataframe(
     filtered_df[[
         'Bond Type', 'Issuer Name', 'Coupon', 'Offer Yield', 'Years to Maturity', 
@@ -117,39 +132,109 @@ st.dataframe(
         'Secured / Unsecured': 'Security',
         'Special Feature': 'Features',
         'Interest Payment Frequency': 'Payment Freq.'
+    }).style.format({
+        'Coupon Rate': '{:.2%}',
+        'Yield': '{:.2%}',
+        'Maturity (Years)': '{:.2f}'
     }),
     use_container_width=True,
     height=600
 )
 
-# Bond type distribution
-st.header("Bond Distribution")
-col1, col2 = st.columns(2)
+# Interactive visualizations
+st.header("📈 Bond Analysis")
 
-with col1:
-    st.subheader("By Bond Type")
-    st.bar_chart(filtered_df['Bond Type'].value_counts())
+tab1, tab2, tab3 = st.tabs(["Yield vs Maturity", "Bond Distribution", "Coupon Analysis"])
 
-with col2:
-    st.subheader("By Credit Rating")
-    st.bar_chart(filtered_df['Credit Rating'].value_counts())
+with tab1:
+    fig = px.scatter(
+        filtered_df,
+        x='Years to Maturity',
+        y='Offer Yield',
+        color='Credit Rating',
+        hover_name='Issuer Name',
+        size='Coupon',
+        title='Yield vs Maturity by Credit Rating'
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# Bond details expander
-st.header("Bond Details")
+with tab2:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig1 = px.pie(
+            filtered_df,
+            names='Bond Type',
+            title='Bond Type Distribution'
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+    
+    with col2:
+        fig2 = px.bar(
+            filtered_df['Credit Rating'].value_counts().reset_index(),
+            x='index',
+            y='Credit Rating',
+            title='Credit Rating Distribution',
+            labels={'index': 'Credit Rating', 'Credit Rating': 'Count'}
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+with tab3:
+    fig = px.box(
+        filtered_df,
+        x='Credit Rating',
+        y='Coupon',
+        color='Bond Type',
+        title='Coupon Rate Distribution by Credit Rating'
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+# Bond details expander with improved layout
+st.header("🔎 Bond Details")
+
 for _, row in filtered_df.iterrows():
     with st.expander(f"{row['Issuer Name']} - {row['ISIN']}"):
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
+            st.subheader("Basic Info")
+            st.write(f"**Bond Type:** {row['Bond Type']}")
             st.write(f"**Coupon Rate:** {row['Coupon']*100:.2f}%")
             st.write(f"**Yield:** {row['Offer Yield']*100:.2f}%")
-            st.write(f"**Maturity Date:** {row['Redemption Date'].strftime('%d-%m-%Y')}")
-            st.write(f"**Years to Maturity:** {row['Years to Maturity']:.2f}")
+            st.write(f"**Face Value:** ₹{row['Face Value']:,.2f}")
             
         with col2:
+            st.subheader("Maturity & Rating")
+            st.write(f"**Maturity Date:** {row['Redemption Date'].strftime('%d-%m-%Y')}")
+            st.write(f"**Years to Maturity:** {row['Years to Maturity']:.2f}")
             st.write(f"**Credit Rating:** {row['Credit Rating']}")
             st.write(f"**Outlook:** {row['Outlook']}")
+            
+        with col3:
+            st.subheader("Payment Details")
             st.write(f"**Payment Frequency:** {row['Interest Payment Frequency']}")
             st.write(f"**Principal Redemption:** {row['Principal Redemption']}")
+            st.write(f"**Security:** {row['Secured / Unsecured']}")
+            st.write(f"**Total Quantity FV:** ₹{row['Total Qty FV']:,.2f}")
         
-        st.write(f"**Special Features:** {row['Special Feature']}")
+        st.subheader("Special Features")
+        st.write(row['Special Feature'])
+
+# Add download button
+st.sidebar.markdown("---")
+if st.sidebar.button("💾 Download Filtered Data"):
+    csv = filtered_df.to_csv(index=False).encode('utf-8')
+    st.sidebar.download_button(
+        label="Download CSV",
+        data=csv,
+        file_name="filtered_bonds.csv",
+        mime="text/csv"
+    )
+
+# Add some explanatory text
+st.sidebar.markdown("""
+**About this dashboard:**
+- **SLIPS**: Standard bonds with fixed coupon payments
+- **FLIPS**: Inflation-linked bonds with CPI adjustments
+- Data is for demonstration purposes only
+""")

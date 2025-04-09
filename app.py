@@ -69,38 +69,59 @@ st.markdown("""
 # Load the bond data
 @st.cache_data
 def load_data():
-    try:
-        # Read data from Excel file
-        df = pd.read_excel("Bonds_Data_2025.xlsx")
-        
-        # Convert date strings to datetime objects
-        df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True)
-        
-        # Calculate days to maturity
-        today = datetime.now()
-        df['Days to Maturity'] = (df['Redemption Date'] - today).dt.days
-        df['Years to Maturity'] = df['Days to Maturity'] / 365
-        
-        # Create a function to categorize bonds as SLIPS or FLIPS
-        def categorize_bond(row):
-            if "CPI" in str(row['Special Feature']) or "inflation" in str(row['Special Feature']):
-                return "FLIPS"
-            else:
-                return "SLIPS"
+    data = [
+        ["INE219O07362", "GOSWAMI INFRATECH PRIVATE LIMITED", 0, "30-04-2026", "-", 61643, "1Y,0M,21D", "Secured", "Zero Coupon", 3, 184929, 0.165, "CARE BB-", "Negative", "On Maturity", "2.37% On June 24 & Later 48% Semi Annual"],
+        ["INE468N07BJ0", "ECAP EQUITIES LIMITED", 0, "13-08-2026", "-", 100000, "1Y,4M,4D", "Secured", "Zero Coupon", 1, 100000, 0.125, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+        ["INE07HK07791", "KRAZYBEE SERVICES PRIVATE LIMITED", 0.1095, "23-07-2026", "-", 100000, "1Y,3M,14D", "Secured", "NCD", 7, 700000, 0.124, "CARE A-", "Stable", "Monthly", "50% FV Semi annual from Jan 26"],
+        ["INE07HK07783", "KRAZYBEE SERVICES PRIVATE LIMITED", 0.103, "12-06-2026", "-", 100000, "1Y,2M,3D", "Secured", "NCD", 2, 200000, 0.124, "CRISIL A-", "Stable", "Monthly", "33.33% Every Semi- Annual From Jun 25"],
+        ["INE07HK07742", "KRAZYBEE SERVICES PRIVATE LIMITED", 0.102, "19-12-2025", "-", 66666.67, "0Y,8M,10D", "Secured", "NCD", 1, 66666.67, 0.124, "CRISIL A-", "Stable", "Monthly", "On Maturity"],
+        ["INE090W07675", "LENDINGKART FINANCE LIMITED", 0.107809988, "23-02-2026", "-", 100000, "0Y,10M,14D", "Secured", "NCD", 55, 5500000, 0.1225, "IND BBB+", "Stable", "Monthly", "On Maturity"],
+        ["INE01E708024", "ANDHRA PRADESH CAPITAL REGION DEVELOPMENT AUTHORITY", 0.1032, "16-08-2025", "-", 100000, "0Y,4M,7D", "Unsecured", "NCD", 11.25, 1125000, 0.1225, "CRISIL BB+(CE)", "-", "Quarterly", "25% Every Quarter From Nov 24"],
+        ["INE090W07683", "LENDINGKART FINANCE LIMITED", 0.1076, "10-05-2026", "-", 100000, "1Y,1M,1D", "Secured", "NCD", 4, 400000, 0.1225, "IND BBB+", "Stable", "Monthly", "On Maturity"],
+        ["INE532F07CQ2", "EDELWEISS FINANCIAL SERVICES LIMITED", 0.0915, "28-12-2026", "-", 1000, "1Y,8M,19D", "Secured", "NCD", 3500, 3500000, 0.1215, "CRISIL A+", "-", "Monthly", "On Maturity"],
+        ["INE532F07EP0", "EDELWEISS FINANCIAL SERVICES LIMITED", 0.096, "26-10-2026", "-", 1000, "1Y,6M,17D", "Secured", "NCD", 1868, 1868000, 0.1215, "CRISIL A+", "Stable", "Annually", "On Maturity"],
+        ["INE532F07DL1", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "20-01-2026", "-", 1000, "0Y,9M,11D", "Secured", "Zero Coupon", 1014, 1014000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+        ["INE532F07DG1", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "20-01-2028", "-", 1000, "2Y,9M,11D", "Secured", "Zero Coupon", 459, 459000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+        ["INE532F07DK3", "EDELWEISS FINANCIAL SERVICES LIMITED", 0.0967, "20-01-2028", "-", 1000, "2Y,9M,11D", "Secured", "NCD", 378, 378000, 0.1215, "CRISIL A+", "-", "Monthly", "On Maturity"],
+        ["INE532F07EV8", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "29-01-2026", "-", 1000, "0Y,9M,20D", "Secured", "Zero Coupon", 3, 3000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+        ["INE532F07EX4", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "29-01-2027", "-", 1000, "1Y,9M,20D", "Secured", "Zero Coupon", 225, 225000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+        ["INE532F07CS8", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "28-12-2026", "-", 1000, "1Y,8M,19D", "Secured", "Zero Coupon", 365, 365000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+        ["INE532F07BO9", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "08-01-2026", "-", 1000, "0Y,8M,30D", "Secured", "Zero Coupon", 194, 194000, 0.1215, "CARE A", "Stable", "On Maturity", "On Maturity"]
+    ]
 
-        df['Bond Type'] = df.apply(categorize_bond, axis=1)
-        
-        # Calculate additional metrics
-        df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'] * df['Years to Maturity'])
-        
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return pd.DataFrame()
+    columns = [
+        "ISIN", "Issuer Name", "Coupon", "Redemption Date", "Call/Put Date", 
+        "Face Value", "Residual Tenure", "Secured / Unsecured", "Special Feature", 
+        "Total Qty", "Total Qty FV", "Offer Yield", "Credit Rating", "Outlook", 
+        "Interest Payment Frequency", "Principal Redemption"
+    ]
+
+    df = pd.DataFrame(data, columns=columns)
+    
+    # Convert date strings to datetime objects
+    df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True)
+    
+    # Calculate days to maturity
+    today = datetime.now()
+    df['Days to Maturity'] = (df['Redemption Date'] - today).dt.days
+    df['Years to Maturity'] = df['Days to Maturity'] / 365
+    
+    # Create a function to categorize bonds as SLIPS or FLIPS
+    def categorize_bond(row):
+        if "CPI" in str(row['Special Feature']) or "inflation" in str(row['Special Feature']):
+            return "FLIPS"
+        else:
+            return "SLIPS"
+
+    df['Bond Type'] = df.apply(categorize_bond, axis=1)
+    
+    # Calculate additional metrics
+    df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'] * df['Years to Maturity'])
+    
+    return df
 
 df = load_data()
 
-# Rest of your code remains the same...
 # Dashboard Header
 st.markdown('<p class="header-text">SLIPS & FLIPS Bonds Dashboard</p>', unsafe_allow_html=True)
 st.markdown('<p class="subheader-text">Comprehensive analysis of available structured bonds with inflation protection features</p>', unsafe_allow_html=True)
@@ -221,11 +242,11 @@ with tab2:
         row=1, col=1
     )
     
-    # Bar chart
+    # Bar chart - FIXED THE ERROR HERE
     rating_counts = filtered_df['Credit Rating'].value_counts().reset_index()
     fig.add_trace(
         go.Bar(
-            x=rating_counts['Credit Rating'],
+            x=rating_counts['Credit Rating'],  # Changed from 'index' to 'Credit Rating'
             y=rating_counts['count'],
             name="Credit Rating",
             marker_color='#3498db'

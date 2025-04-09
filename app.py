@@ -73,8 +73,24 @@ def load_data():
         # Read data from Excel file
         df = pd.read_excel("Bonds_Data_2025.xlsx")
         
-        # Convert date strings to datetime objects
-        df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True)
+        # Check if required columns exist
+        required_columns = ['ISIN', 'Issuer Name', 'Coupon', 'Redemption Date', 
+                          'Face Value', 'Secured / Unsecured', 'Special Feature',
+                          'Total Qty', 'Total Qty FV', 'Offer Yield', 'Credit Rating']
+        
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if missing_cols:
+            st.error(f"Missing required columns in Excel file: {', '.join(missing_cols)}")
+            return pd.DataFrame()
+        
+        # Convert date strings to datetime objects with error handling
+        try:
+            df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True, errors='coerce')
+            # Replace far future dates with NaT
+            df.loc[df['Redemption Date'] > pd.Timestamp('2100-01-01'), 'Redemption Date'] = pd.NaT
+        except Exception as e:
+            st.error(f"Error processing dates: {str(e)}")
+            return pd.DataFrame()
         
         # Calculate days to maturity
         today = datetime.now()
@@ -83,22 +99,29 @@ def load_data():
         
         # Create a function to categorize bonds as SLIPS or FLIPS
         def categorize_bond(row):
+            if pd.isna(row['Special Feature']):
+                return "SLIPS"
             if "CPI" in str(row['Special Feature']) or "inflation" in str(row['Special Feature']):
                 return "FLIPS"
-            else:
-                return "SLIPS"
+            return "SLIPS"
 
         df['Bond Type'] = df.apply(categorize_bond, axis=1)
         
         # Calculate additional metrics
-        df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'] * df['Years to Maturity'])
+        df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'].fillna(0) * df['Years to Maturity'].fillna(0))
         
         return df
+    
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=required_columns)  # Return empty DataFrame with required columns
 
 df = load_data()
+
+# Check if DataFrame is empty before proceeding
+if df.empty:
+    st.error("No data loaded. Please check the Excel file and try again.")
+    st.stop()  # This will halt the app execution
 
 # Rest of your code remains the same...
 # Dashboard Header

@@ -613,8 +613,14 @@ def load_data():
     # Convert coupon values to numeric
     def clean_coupon(value):
         if isinstance(value, str):
+            # Handle special cases
+            if value == "G-Sec Linked":
+                return np.nan  # Return NaN for G-Sec Linked bonds
             # Remove % sign if present and convert to float
-            return float(value.replace('%', '')) / 100
+            try:
+                return float(value.replace('%', '')) / 100
+            except ValueError:
+                return np.nan  # Return NaN for any other unconvertible strings
         return value
     
     df['Coupon'] = df['Coupon'].apply(clean_coupon)
@@ -636,8 +642,8 @@ def load_data():
 
     df['Bond Type'] = df.apply(categorize_bond, axis=1)
     
-    # Calculate additional metrics
-    df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'] * df['Years to Maturity'])
+    # Calculate additional metrics - handle NaN values
+    df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'].fillna(0) * df['Years to Maturity'])
     
     return df
 

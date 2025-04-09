@@ -1,372 +1,155 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from datetime import datetime, date
-import plotly.express as px
-import os
+from datetime import datetime
 
-# Configure page
-st.set_page_config(
-    page_title="SLIPS & FLIPS Bonds Dashboard",
-    page_icon="📈",
-    layout="wide"
+# Load the bond data
+data = [
+    ["INE219O07362", "GOSWAMI INFRATECH PRIVATE LIMITED", 0, "30-04-2026", "-", 61643, "1Y,0M,21D", "Secured", "Zero Coupon", 3, 184929, 0.165, "CARE BB-", "Negative", "On Maturity", "2.37% On June 24 & Later 48% Semi Annual"],
+    ["INE468N07BJ0", "ECAP EQUITIES LIMITED", 0, "13-08-2026", "-", 100000, "1Y,4M,4D", "Secured", "Zero Coupon", 1, 100000, 0.125, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+    ["INE07HK07791", "KRAZYBEE SERVICES PRIVATE LIMITED", 0.1095, "23-07-2026", "-", 100000, "1Y,3M,14D", "Secured", "NCD", 7, 700000, 0.124, "CARE A-", "Stable", "Monthly", "50% FV Semi annual from Jan 26"],
+    ["INE07HK07783", "KRAZYBEE SERVICES PRIVATE LIMITED", 0.103, "12-06-2026", "-", 100000, "1Y,2M,3D", "Secured", "NCD", 2, 200000, 0.124, "CRISIL A-", "Stable", "Monthly", "33.33% Every Semi- Annual From Jun 25"],
+    ["INE07HK07742", "KRAZYBEE SERVICES PRIVATE LIMITED", 0.102, "19-12-2025", "-", 66666.67, "0Y,8M,10D", "Secured", "NCD", 1, 66666.67, 0.124, "CRISIL A-", "Stable", "Monthly", "On Maturity"],
+    ["INE090W07675", "LENDINGKART FINANCE LIMITED", 0.107809988, "23-02-2026", "-", 100000, "0Y,10M,14D", "Secured", "NCD", 55, 5500000, 0.1225, "IND BBB+", "Stable", "Monthly", "On Maturity"],
+    ["INE01E708024", "ANDHRA PRADESH CAPITAL REGION DEVELOPMENT AUTHORITY", 0.1032, "16-08-2025", "-", 100000, "0Y,4M,7D", "Unsecured", "NCD", 11.25, 1125000, 0.1225, "CRISIL BB+(CE)", "-", "Quarterly", "25% Every Quarter From Nov 24"],
+    ["INE090W07683", "LENDINGKART FINANCE LIMITED", 0.1076, "10-05-2026", "-", 100000, "1Y,1M,1D", "Secured", "NCD", 4, 400000, 0.1225, "IND BBB+", "Stable", "Monthly", "On Maturity"],
+    ["INE532F07CQ2", "EDELWEISS FINANCIAL SERVICES LIMITED", 0.0915, "28-12-2026", "-", 1000, "1Y,8M,19D", "Secured", "NCD", 3500, 3500000, 0.1215, "CRISIL A+", "-", "Monthly", "On Maturity"],
+    ["INE532F07EP0", "EDELWEISS FINANCIAL SERVICES LIMITED", 0.096, "26-10-2026", "-", 1000, "1Y,6M,17D", "Secured", "NCD", 1868, 1868000, 0.1215, "CRISIL A+", "Stable", "Annually", "On Maturity"],
+    ["INE532F07DL1", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "20-01-2026", "-", 1000, "0Y,9M,11D", "Secured", "Zero Coupon", 1014, 1014000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+    ["INE532F07DG1", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "20-01-2028", "-", 1000, "2Y,9M,11D", "Secured", "Zero Coupon", 459, 459000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+    ["INE532F07DK3", "EDELWEISS FINANCIAL SERVICES LIMITED", 0.0967, "20-01-2028", "-", 1000, "2Y,9M,11D", "Secured", "NCD", 378, 378000, 0.1215, "CRISIL A+", "-", "Monthly", "On Maturity"],
+    ["INE532F07EV8", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "29-01-2026", "-", 1000, "0Y,9M,20D", "Secured", "Zero Coupon", 3, 3000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+    ["INE532F07EX4", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "29-01-2027", "-", 1000, "1Y,9M,20D", "Secured", "Zero Coupon", 225, 225000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+    ["INE532F07CS8", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "28-12-2026", "-", 1000, "1Y,8M,19D", "Secured", "Zero Coupon", 365, 365000, 0.1215, "CRISIL A+", "Stable", "On Maturity", "On Maturity"],
+    ["INE532F07BO9", "EDELWEISS FINANCIAL SERVICES LIMITED", 0, "08-01-2026", "-", 1000, "0Y,8M,30D", "Secured", "Zero Coupon", 194, 194000, 0.1215, "CARE A", "Stable", "On Maturity", "On Maturity"]
+]
+
+columns = [
+    "ISIN", "Issuer Name", "Coupon", "Redemption Date", "Call/Put Date", 
+    "Face Value", "Residual Tenure", "Secured / Unsecured", "Special Feature", 
+    "Total Qty", "Total Qty FV", "Offer Yield", "Credit Rating", "Outlook", 
+    "Interest Payment Frequency", "Principal Redemption"
+]
+
+df = pd.DataFrame(data, columns=columns)
+
+# Convert date strings to datetime objects
+df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True)
+
+# Calculate days to maturity
+today = datetime.now()
+df['Days to Maturity'] = (df['Redemption Date'] - today).dt.days
+df['Years to Maturity'] = df['Days to Maturity'] / 365
+
+# Create a function to categorize bonds as SLIPS or FLIPS
+def categorize_bond(row):
+    if "CPI" in str(row['Special Feature']) or "inflation" in str(row['Special Feature']):
+        return "FLIPS"
+    else:
+        return "SLIPS"
+
+df['Bond Type'] = df.apply(categorize_bond, axis=1)
+
+# Streamlit app
+st.set_page_config(layout="wide", page_title="SLIPS & FLIPS Bonds Dashboard")
+
+st.title("SLIPS & FLIPS Bonds Dashboard")
+
+# Sidebar filters
+st.sidebar.header("Filter Bonds")
+
+# Bond type selection
+bond_type = st.sidebar.radio("Select Bond Type", ["All", "SLIPS", "FLIPS"])
+
+# Holding time filter
+holding_time = st.sidebar.slider(
+    "Maximum Years to Maturity", 
+    min_value=0.0, 
+    max_value=5.0, 
+    value=3.0, 
+    step=0.25
 )
 
-# Load data function with caching and error handling for dates
-@st.cache_data
-def load_data(uploaded_file):
-    try:
-        # Read the Excel file from the uploaded file object
-        df = pd.read_excel(uploaded_file, sheet_name='Sheet1')
+# Risk level filter
+risk_levels = sorted(df['Credit Rating'].unique())
+selected_risk = st.sidebar.multiselect(
+    "Credit Rating", 
+    options=risk_levels, 
+    default=risk_levels
+)
 
-        # Handle the "9999-12-31" dates by replacing them with a far future but valid date
-        max_valid_date = pd.Timestamp.max - pd.Timedelta(days=1)  # Maximum valid pandas timestamp
-        
-        # Data cleaning and transformations
-        df['Redemption Date'] = pd.to_datetime(
-            df['Redemption Date'].replace('9999-12-31 00:00:00', max_valid_date),
-            errors='coerce'
-        )
-        
-        # Handle Coupon and Offer Yield columns, convert to numeric
-        df['Coupon'] = pd.to_numeric(df['Coupon'], errors='coerce')
-        df['Offer Yield'] = pd.to_numeric(df['Offer Yield'], errors='coerce')
-        
-        # Calculate time to maturity
-        today = datetime.now()
-        df['Years to Maturity'] = (df['Redemption Date'] - today).dt.days / 365
-        
-        # Extract credit rating category
-        rating_order = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-', 'BB+', 'BB', 'BB-']
-        df['Rating Category'] = df['Credit Rating'].str.extract(r'([A-Za-z]+\+?\-?)')[0]
-        df['Rating Category'] = pd.Categorical(
-            df['Rating Category'],
-            categories=rating_order,
-            ordered=True
-        )
-        
-        # Create risk categories
-        conditions = [
-            df['Rating Category'].isin(['AAA', 'AA+', 'AA']),
-            df['Rating Category'].isin(['AA-', 'A+', 'A']),
-            df['Rating Category'].isin(['A-', 'BBB+', 'BBB']),
-            df['Rating Category'].isin(['BBB-', 'BB+', 'BB']),
-            df['Rating Category'].isin(['BB-', 'B+', 'B', 'B-', 'CCC+', 'CCC', 'CCC-', 'CC', 'C', 'D'])
-        ]
-        choices = ['Very Low', 'Low', 'Medium', 'High', 'Very High']
-        df['Risk Level'] = np.select(conditions, choices, default='Unknown')
-        
-        # Create industry/sector categories
-        df['Industry'] = df['Issuer Name'].apply(lambda x: 'Finance' if 'FINANCE' in str(x).upper() 
-                                               else 'Infrastructure' if 'INFRA' in str(x).upper()
-                                               else 'Banking' if 'BANK' in str(x).upper()
-                                               else 'Government' if 'GOVERNMENT' in str(x).upper()
-                                               else 'Other')
-        
-        # Convert face value to numeric
-        df['Face Value'] = pd.to_numeric(df['Face Value'], errors='coerce')
-        
-        return df
-    
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return pd.DataFrame()
+# Coupon rate filter
+min_coupon, max_coupon = st.sidebar.slider(
+    "Coupon Rate Range (%)",
+    min_value=0.0,
+    max_value=15.0,
+    value=(5.0, 12.0),
+    step=0.1
+)
 
-# Main app
-def main():
-    st.title("📊 SLIPS & FLIPS Bonds Dashboard")
-    st.markdown("""
-    **SLIPS** (Secured and Liquid Industry Specific Protected Securities) and **FLIPS** (Flexible Liquidity Inflation-Protected Securities) 
-    are specialized bond investment strategies designed for different market conditions.
-    """)
-    
-    # File uploader
-    uploaded_file = st.file_uploader("Upload your bonds data (Excel file)", type=["xlsx"])
-    
-    if uploaded_file is not None:
-        # Load data
-        df = load_data(uploaded_file)
-        
-        if df.empty:
-            st.error("Data loaded but no valid records found. Please check your file content.")
-            return
-        
-        # Sidebar filters
-        st.sidebar.header("Investment Preferences")
-        investment_type = st.sidebar.radio("Investment Strategy:", ["SLIPS", "FLIPS"])
-        
-        if investment_type == "SLIPS":
-            show_slips_dashboard(df)
-        else:
-            show_flips_dashboard(df)
-    else:
-        st.warning("Please upload an Excel file to proceed")
+# Apply filters
+filtered_df = df.copy()
 
-# SLIPS Dashboard - Modified to focus on Offer Yield
-def show_slips_dashboard(df):
-    st.header("🔒 SLIPS Bonds Analysis")
-    st.markdown("""
-    **Secured and Liquid Industry Specific Protected Securities**  
-    High-yield bonds with industry-specific exposure and capital protection features.
-    """)
-    
-    # SLIPS filters - Now focused on Offer Yield
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        min_yield = st.slider(
-            "Minimum Offer Yield (%)",
-            min_value=0.0,
-            max_value=20.0,
-            value=5.0,
-            step=0.1,
-            key='slips_yield'
-        )
-    with col2:
-        industries = st.multiselect(
-            "Select Industries",
-            options=df['Industry'].unique(),
-            default=['Finance', 'Infrastructure'],
-            key='slips_industries'
-        )
-    with col3:
-        protection_level = st.select_slider(
-            "Protection Level",
-            options=["Basic", "Moderate", "High", "Very High"],
-            value="Moderate",
-            key='slips_protection'
-        )
-    
-    # Filter data - Now using Offer Yield as primary filter
-    filtered_df = df[
-        (df['Offer Yield'] >= min_yield/100) &
-        (df['Industry'].isin(industries)) &
-        (df['Secured / Unsecured'] == 'Secured')
-    ].copy()
-    
-    # Apply protection level filter
-    if protection_level == "Basic":
-        filtered_df = filtered_df[filtered_df['Risk Level'].isin(['Very Low', 'Low'])]
-    elif protection_level == "Moderate":
-        filtered_df = filtered_df[filtered_df['Risk Level'].isin(['Very Low', 'Low', 'Medium'])]
-    elif protection_level == "High":
-        filtered_df = filtered_df[filtered_df['Risk Level'].isin(['Very Low', 'Low', 'Medium', 'High'])]
-    
-    # Display metrics - Emphasizing Yield metrics
-    if not filtered_df.empty:
-        st.subheader("📊 Portfolio Metrics")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Bonds", len(filtered_df))
-        m2.metric("Avg Offer Yield", f"{filtered_df['Offer Yield'].mean():.2%}", 
-                 help="Average yield across selected bonds")
-        m3.metric("Yield Range", 
-                 f"{filtered_df['Offer Yield'].min():.2%} to {filtered_df['Offer Yield'].max():.2%}")
-        m4.metric("Avg Maturity", f"{filtered_df['Years to Maturity'].mean():.1f} years")
+if bond_type != "All":
+    filtered_df = filtered_df[filtered_df['Bond Type'] == bond_type]
+
+filtered_df = filtered_df[filtered_df['Years to Maturity'] <= holding_time]
+filtered_df = filtered_df[filtered_df['Credit Rating'].isin(selected_risk)]
+filtered_df = filtered_df[(filtered_df['Coupon'] >= min_coupon/100) & (filtered_df['Coupon'] <= max_coupon/100)]
+
+# Main display
+st.header("Available Bonds")
+
+# Metrics
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Bonds", len(filtered_df))
+col2.metric("Average Coupon", f"{filtered_df['Coupon'].mean()*100:.2f}%")
+col3.metric("Average Yield", f"{filtered_df['Offer Yield'].mean()*100:.2f}%")
+
+# Display the filtered dataframe
+st.dataframe(
+    filtered_df[[
+        'Bond Type', 'Issuer Name', 'Coupon', 'Offer Yield', 'Years to Maturity', 
+        'Credit Rating', 'Secured / Unsecured', 'Special Feature', 'Interest Payment Frequency'
+    ]].rename(columns={
+        'Coupon': 'Coupon Rate',
+        'Offer Yield': 'Yield',
+        'Years to Maturity': 'Maturity (Years)',
+        'Secured / Unsecured': 'Security',
+        'Special Feature': 'Features',
+        'Interest Payment Frequency': 'Payment Freq.'
+    }),
+    use_container_width=True,
+    height=600
+)
+
+# Bond type distribution
+st.header("Bond Distribution")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("By Bond Type")
+    st.bar_chart(filtered_df['Bond Type'].value_counts())
+
+with col2:
+    st.subheader("By Credit Rating")
+    st.bar_chart(filtered_df['Credit Rating'].value_counts())
+
+# Bond details expander
+st.header("Bond Details")
+for _, row in filtered_df.iterrows():
+    with st.expander(f"{row['Issuer Name']} - {row['ISIN']}"):
+        col1, col2 = st.columns(2)
         
-        # Interactive data table - Sorted by Offer Yield by default
-        st.subheader("🧾 Available Bonds")
-        show_columns = [
-            'ISIN', 'Issuer Name', 'Industry', 'Offer Yield', 'Coupon', 'Years to Maturity',
-            'Credit Rating', 'Risk Level', 'Interest Payment Frequency', 'Principal Redemption', 'Face Value'
-        ]
-        st.dataframe(
-            filtered_df[show_columns].sort_values('Offer Yield', ascending=False),
-            column_config={
-                "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
-                "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
-                "Face Value": st.column_config.NumberColumn(format="%.2f")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # Visualizations - Focused on Yield analysis
-        st.subheader("📈 Yield Analysis")
-        tab1, tab2, tab3 = st.tabs(["Yield Distribution", "Industry Yield Comparison", "Yield vs Risk"])
-        
-        with tab1:
-            fig = px.histogram(
-                filtered_df,
-                x='Offer Yield',
-                nbins=20,
-                title='Distribution of Bond Yields',
-                labels={'Offer Yield': 'Yield (%)'},
-                color='Risk Level'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with tab2:
-            industry_stats = filtered_df.groupby('Industry').agg({
-                'Offer Yield': 'mean',
-                'Years to Maturity': 'mean'
-            }).reset_index()
+        with col1:
+            st.write(f"**Coupon Rate:** {row['Coupon']*100:.2f}%")
+            st.write(f"**Yield:** {row['Offer Yield']*100:.2f}%")
+            st.write(f"**Maturity Date:** {row['Redemption Date'].strftime('%d-%m-%Y')}")
+            st.write(f"**Years to Maturity:** {row['Years to Maturity']:.2f}")
             
-            fig = px.bar(
-                industry_stats,
-                x='Industry',
-                y='Offer Yield',
-                color='Industry',
-                title='Average Yield by Industry',
-                labels={'Offer Yield': 'Avg Yield (%)'},
-                text_auto='.2%'
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            st.write(f"**Credit Rating:** {row['Credit Rating']}")
+            st.write(f"**Outlook:** {row['Outlook']}")
+            st.write(f"**Payment Frequency:** {row['Interest Payment Frequency']}")
+            st.write(f"**Principal Redemption:** {row['Principal Redemption']}")
         
-        with tab3:
-            fig = px.scatter(
-                filtered_df,
-                x='Risk Level',
-                y='Offer Yield',
-                color='Industry',
-                size='Face Value',
-                hover_name='Issuer Name',
-                title='Yield by Risk Level',
-                category_orders={"Risk Level": ["Very Low", "Low", "Medium", "High", "Very High"]}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Recommendation engine - Based on yield
-        st.subheader("💡 Yield-Based Recommendations")
-        holding_period = st.slider(
-            "Your planned holding period (years)",
-            min_value=1,
-            max_value=30,
-            value=5,
-            key='slips_holding'
-        )
-        
-        risk_tolerance = st.select_slider(
-            "Your risk tolerance",
-            options=["Conservative", "Moderate", "Aggressive"],
-            value="Moderate",
-            key='slips_risk'
-        )
-        
-        if risk_tolerance == "Conservative":
-            rec_df = filtered_df[
-                (filtered_df['Years to Maturity'] <= holding_period) &
-                (filtered_df['Risk Level'].isin(['Very Low', 'Low']))
-            ].sort_values(['Rating Category', 'Offer Yield'], ascending=[True, False])
-        elif risk_tolerance == "Moderate":
-            rec_df = filtered_df[
-                (filtered_df['Years to Maturity'] <= holding_period + 2) &
-                (filtered_df['Risk Level'].isin(['Very Low', 'Low', 'Medium']))
-            ].sort_values(['Rating Category', 'Offer Yield'], ascending=[True, False])
-        else:  # Aggressive
-            rec_df = filtered_df[
-                (filtered_df['Years to Maturity'] <= holding_period + 5)
-            ].sort_values('Offer Yield', ascending=False)
-        
-        if not rec_df.empty:
-            st.success(f"Recommended {len(rec_df)} bonds for your profile:")
-            st.dataframe(
-                rec_df.head(10)[show_columns],
-                column_config={
-                    "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
-                    "Face Value": st.column_config.NumberColumn(format="%.2f")
-                },
-                use_container_width=True,
-                hide_index=True
-            )
-            
-            # Generate allocation suggestion based on yield
-            st.markdown("#### Suggested Allocation Strategy")
-            allocation = rec_df.groupby('Industry')['Offer Yield'].mean().sort_values(ascending=False)
-            st.write(f"Based on your {risk_tolerance.lower()} risk tolerance and {holding_period}-year horizon:")
-            st.write("- Prioritize industries with highest yields that match your risk profile")
-            st.write("- Consider yield curve positioning for your time horizon")
-            
-            fig = px.pie(
-                allocation,
-                names=allocation.index,
-                values=allocation.values,
-                title='Suggested Industry Allocation by Yield',
-                hole=0.3
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No bonds match your criteria. Try adjusting your filters.")
-    
-    else:
-        st.warning("No bonds match your current filters. Try adjusting your criteria.")
-
-# FLIPS Dashboard - Modified to focus on Offer Yield
-def show_flips_dashboard(df):
-    st.header("🛡️ FLIPS Bonds Analysis")
-    st.markdown("""
-    **Flexible Liquidity Inflation-Protected Securities**  
-    Bonds designed to provide competitive yields while protecting against inflation.
-    """)
-    
-    # FLIPS filters - Focused on yield
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        inflation_adjusted = st.checkbox(
-            "Show only inflation-linked bonds",
-            value=True,
-            key='flips_inflation'
-        )
-    with col2:
-        min_yield = st.slider(
-            "Minimum offer yield (%)",
-            min_value=0.0,
-            max_value=15.0,
-            value=3.0,
-            step=0.1,
-            key='flips_yield'
-        )
-    with col3:
-        liquidity_pref = st.selectbox(
-            "Liquidity preference",
-            options=["Daily", "Weekly", "Monthly", "Annually"],
-            index=1,
-            key='flips_liquidity'
-        )
-    
-    # Filter data - Now using offer yield primarily for FLIPS
-    filtered_df = df[
-        (df['Offer Yield'] >= min_yield/100) &
-        (df['Inflation Linked'] == inflation_adjusted) &
-        (df['Liquidity'] == liquidity_pref)
-    ]
-    
-    # Display metrics for FLIPS
-    if not filtered_df.empty:
-        st.subheader("📊 Portfolio Metrics")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Bonds", len(filtered_df))
-        m2.metric("Avg Offer Yield", f"{filtered_df['Offer Yield'].mean():.2%}")
-        m3.metric("Avg Coupon", f"{filtered_df['Coupon'].mean():.2%}")
-        m4.metric("Avg Maturity", f"{filtered_df['Years to Maturity'].mean():.1f} years")
-        
-        # Interactive data table
-        st.subheader("🧾 Available Bonds")
-        st.dataframe(
-            filtered_df[show_columns].sort_values('Offer Yield', ascending=False),
-            column_config={
-                "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
-                "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
-                "Face Value": st.column_config.NumberColumn(format="%.2f")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # Visualizations for FLIPS
-        st.subheader("📈 Yield and Liquidity")
-        fig = px.scatter(
-            filtered_df,
-            x='Years to Maturity',
-            y='Offer Yield',
-            color='Risk Level',
-            size='Face Value',
-            hover_name='Issuer Name',
-            title="Yield vs Maturity for FLIPS Bonds",
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-if __name__ == "__main__":
-    main()
+        st.write(f"**Special Features:** {row['Special Feature']}")

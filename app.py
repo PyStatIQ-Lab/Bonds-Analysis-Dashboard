@@ -21,7 +21,7 @@ st.markdown("""
         background-color: #f8f9fa;
     }
     .stMetric {
-        background-color: grey;
+        background-color: white;
         border-radius: 10px;
         padding: 15px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -40,7 +40,7 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     .stExpander {
-        background-color: grey;
+        background-color: blue;
         border-radius: 10px;
         padding: 15px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);

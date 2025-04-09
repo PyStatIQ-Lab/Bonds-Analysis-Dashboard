@@ -61,6 +61,9 @@ def load_data():
                                                else 'Government' if 'GOVERNMENT' in str(x).upper()
                                                else 'Other')
         
+        # Convert face value to numeric
+        df['Face Value'] = pd.to_numeric(df['Face Value'], errors='coerce')
+        
         return df
     
     except Exception as e:
@@ -105,7 +108,7 @@ def show_slips_dashboard(df):
             "Minimum Coupon Rate (%)",
             min_value=0.0,
             max_value=20.0,
-            value=9.5,
+            value=5.0,
             step=0.1,
             key='slips_coupon'
         )
@@ -151,15 +154,16 @@ def show_slips_dashboard(df):
         # Interactive data table
         st.subheader("🧾 Available Bonds")
         show_columns = [
-            'Issuer Name', 'Industry', 'Coupon', 'Offer Yield', 'Years to Maturity',
-            'Credit Rating', 'Risk Level', 'Interest Payment Frequency', 'Principal Redemption'
+            'ISIN', 'Issuer Name', 'Industry', 'Coupon', 'Offer Yield', 'Years to Maturity',
+            'Credit Rating', 'Risk Level', 'Interest Payment Frequency', 'Principal Redemption', 'Face Value'
         ]
         st.dataframe(
             filtered_df[show_columns].sort_values('Offer Yield', ascending=False),
             column_config={
                 "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
                 "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                "Years to Maturity": st.column_config.NumberColumn(format="%.1f years")
+                "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
+                "Face Value": st.column_config.NumberColumn(format="%.2f")
             },
             use_container_width=True,
             hide_index=True
@@ -204,12 +208,13 @@ def show_slips_dashboard(df):
                 x='Years to Maturity',
                 y='Offer Yield',
                 color='Risk Level',
-                size='Coupon',
+                size='Face Value',
                 hover_name='Issuer Name',
                 title='Yield vs Maturity',
                 labels={
                     'Years to Maturity': 'Years to Maturity',
-                    'Offer Yield': 'Yield (%)'
+                    'Offer Yield': 'Yield (%)',
+                    'Face Value': 'Face Value'
                 }
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -253,7 +258,8 @@ def show_slips_dashboard(df):
                 column_config={
                     "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
                     "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Years to Maturity": st.column_config.NumberColumn(format="%.1f years")
+                    "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
+                    "Face Value": st.column_config.NumberColumn(format="%.2f")
                 },
                 use_container_width=True,
                 hide_index=True
@@ -333,7 +339,6 @@ def show_flips_dashboard(df):
     
     # Apply inflation-adjusted filter
     if inflation_adjusted:
-        # In real app, would filter for actual inflation-linked bonds
         filtered_df = filtered_df[filtered_df['Special Feature'].str.contains('CPI|Inflation', case=False, na=False)]
     
     # Display metrics
@@ -348,8 +353,8 @@ def show_flips_dashboard(df):
         # Interactive data table
         st.subheader("🧾 Available Bonds")
         show_columns = [
-            'Issuer Name', 'Industry', 'Coupon', 'Offer Yield', 'Estimated Real Yield',
-            'Years to Maturity', 'Credit Rating', 'Risk Level', 'Interest Payment Frequency'
+            'ISIN', 'Issuer Name', 'Industry', 'Coupon', 'Offer Yield', 'Estimated Real Yield',
+            'Years to Maturity', 'Credit Rating', 'Risk Level', 'Interest Payment Frequency', 'Face Value'
         ]
         st.dataframe(
             filtered_df[show_columns].sort_values('Estimated Real Yield', ascending=False),
@@ -357,7 +362,8 @@ def show_flips_dashboard(df):
                 "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
                 "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
                 "Estimated Real Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                "Years to Maturity": st.column_config.NumberColumn(format="%.1f years")
+                "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
+                "Face Value": st.column_config.NumberColumn(format="%.2f")
             },
             use_container_width=True,
             hide_index=True
@@ -384,12 +390,13 @@ def show_flips_dashboard(df):
                 x='Years to Maturity',
                 y='Estimated Real Yield',
                 color='Risk Level',
-                size='Coupon',
+                size='Face Value',
                 hover_name='Issuer Name',
                 title='Real Yield vs Maturity',
                 labels={
                     'Years to Maturity': 'Years to Maturity',
-                    'Estimated Real Yield': 'Real Yield (%)'
+                    'Estimated Real Yield': 'Real Yield (%)',
+                    'Face Value': 'Face Value'
                 }
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -448,7 +455,8 @@ def show_flips_dashboard(df):
                     "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
                     "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
                     "Estimated Real Yield": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Years to Maturity": st.column_config.NumberColumn(format="%.1f years")
+                    "Years to Maturity": st.column_config.NumberColumn(format="%.1f years"),
+                    "Face Value": st.column_config.NumberColumn(format="%.2f")
                 },
                 use_container_width=True,
                 hide_index=True
@@ -470,12 +478,13 @@ def show_flips_dashboard(df):
                 x='Years to Maturity',
                 y='Estimated Real Yield',
                 color='Industry',
-                size='Coupon',
+                size='Face Value',
                 hover_name='Issuer Name',
                 title='Recommended Bonds by Industry',
                 labels={
                     'Years to Maturity': 'Years to Maturity',
-                    'Estimated Real Yield': 'Real Yield (%)'
+                    'Estimated Real Yield': 'Real Yield (%)',
+                    'Face Value': 'Face Value'
                 }
             )
             st.plotly_chart(fig, use_container_width=True)

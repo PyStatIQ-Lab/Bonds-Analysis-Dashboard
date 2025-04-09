@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, date
 import plotly.express as px
+import os
 
 # Configure page
 st.set_page_config(
@@ -13,10 +14,10 @@ st.set_page_config(
 
 # Load data function with caching and error handling for dates
 @st.cache_data
-def load_data():
+def load_data(uploaded_file):
     try:
-        # Read the Excel file directly
-        df = pd.read_excel("Bonds_Data_2025.xlsx", sheet_name='Sheet1')
+        # Read the Excel file from the uploaded file object
+        df = pd.read_excel(uploaded_file, sheet_name='Sheet1')
         
         # Handle the "9999-12-31" dates by replacing them with a far future but valid date
         max_valid_date = pd.Timestamp.max - pd.Timedelta(days=1)  # Maximum valid pandas timestamp
@@ -78,39 +79,46 @@ def main():
     are specialized bond investment strategies designed for different market conditions.
     """)
     
-    # Load data
-    df = load_data()
-    if df.empty:
-        st.error("No data loaded. Please check your file format and ensure 'Bonds_Data_2025.xlsx' is in the same directory.")
-        return
+    # File uploader
+    uploaded_file = st.file_uploader("Upload your bonds data (Excel file)", type=["xlsx"])
     
-    # Sidebar filters
-    st.sidebar.header("Investment Preferences")
-    investment_type = st.sidebar.radio("Investment Strategy:", ["SLIPS", "FLIPS"])
-    
-    if investment_type == "SLIPS":
-        show_slips_dashboard(df)
+    if uploaded_file is not None:
+        # Load data
+        df = load_data(uploaded_file)
+        
+        if df.empty:
+            st.error("Data loaded but no valid records found. Please check your file content.")
+            return
+        
+        # Sidebar filters
+        st.sidebar.header("Investment Preferences")
+        investment_type = st.sidebar.radio("Investment Strategy:", ["SLIPS", "FLIPS"])
+        
+        if investment_type == "SLIPS":
+            show_slips_dashboard(df)
+        else:
+            show_flips_dashboard(df)
     else:
-        show_flips_dashboard(df)
+        st.warning("Please upload an Excel file to proceed")
 
-# SLIPS Dashboard
+# SLIPS Dashboard - Modified to focus on Offer Yield
 def show_slips_dashboard(df):
     st.header("🔒 SLIPS Bonds Analysis")
     st.markdown("""
     **Secured and Liquid Industry Specific Protected Securities**  
-    High-coupon bonds with industry-specific exposure and capital protection features.
+    High-yield bonds with industry-specific exposure and capital protection features.
     """)
     
-    # SLIPS filters
+    # SLIPS filters - Now focused on Offer Yield
     col1, col2, col3 = st.columns(3)
     with col1:
-        min_coupon = st.slider(
-            "Minimum Coupon Rate (%)",
+        min_yield = st.slider(
+            "Minimum Offer Yield (%)",
             min_value=0.0,
             max_value=20.0,
             value=5.0,
             step=0.1,
-            key='slips_coupon'
+            key='slips_yield'
         )
     with col2:
         industries = st.multiselect(
@@ -127,9 +135,9 @@ def show_slips_dashboard(df):
             key='slips_protection'
         )
     
-    # Filter data
+    # Filter data - Now using Offer Yield as primary filter
     filtered_df = df[
-        (df['Coupon'] >= min_coupon/100) &
+        (df['Offer Yield'] >= min_yield/100) &
         (df['Industry'].isin(industries)) &
         (df['Secured / Unsecured'] == 'Secured')
     ].copy()
@@ -142,19 +150,21 @@ def show_slips_dashboard(df):
     elif protection_level == "High":
         filtered_df = filtered_df[filtered_df['Risk Level'].isin(['Very Low', 'Low', 'Medium', 'High'])]
     
-    # Display metrics
+    # Display metrics - Emphasizing Yield metrics
     if not filtered_df.empty:
         st.subheader("📊 Portfolio Metrics")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Bonds", len(filtered_df))
-        m2.metric("Avg Coupon", f"{filtered_df['Coupon'].mean():.2%}")
-        m3.metric("Avg Yield", f"{filtered_df['Offer Yield'].mean():.2%}")
+        m2.metric("Avg Offer Yield", f"{filtered_df['Offer Yield'].mean():.2%}", 
+                 help="Average yield across selected bonds")
+        m3.metric("Yield Range", 
+                 f"{filtered_df['Offer Yield'].min():.2%} to {filtered_df['Offer Yield'].max():.2%}")
         m4.metric("Avg Maturity", f"{filtered_df['Years to Maturity'].mean():.1f} years")
         
-        # Interactive data table
+        # Interactive data table - Sorted by Offer Yield by default
         st.subheader("🧾 Available Bonds")
         show_columns = [
-            'ISIN', 'Issuer Name', 'Industry', 'Coupon', 'Offer Yield', 'Years to Maturity',
+            'ISIN', 'Issuer Name', 'Industry', 'Offer Yield', 'Coupon', 'Years to Maturity',
             'Credit Rating', 'Risk Level', 'Interest Payment Frequency', 'Principal Redemption', 'Face Value'
         ]
         st.dataframe(
@@ -169,9 +179,9 @@ def show_slips_dashboard(df):
             hide_index=True
         )
         
-        # Visualizations
-        st.subheader("📈 Market Analysis")
-        tab1, tab2, tab3 = st.tabs(["Yield Distribution", "Industry Breakdown", "Maturity Profile"])
+        # Visualizations - Focused on Yield analysis
+        st.subheader("📈 Yield Analysis")
+        tab1, tab2, tab3 = st.tabs(["Yield Distribution", "Industry Yield Comparison", "Yield vs Risk"])
         
         with tab1:
             fig = px.histogram(
@@ -186,7 +196,6 @@ def show_slips_dashboard(df):
         
         with tab2:
             industry_stats = filtered_df.groupby('Industry').agg({
-                'Coupon': 'mean',
                 'Offer Yield': 'mean',
                 'Years to Maturity': 'mean'
             }).reset_index()
@@ -205,22 +214,18 @@ def show_slips_dashboard(df):
         with tab3:
             fig = px.scatter(
                 filtered_df,
-                x='Years to Maturity',
+                x='Risk Level',
                 y='Offer Yield',
-                color='Risk Level',
+                color='Industry',
                 size='Face Value',
                 hover_name='Issuer Name',
-                title='Yield vs Maturity',
-                labels={
-                    'Years to Maturity': 'Years to Maturity',
-                    'Offer Yield': 'Yield (%)',
-                    'Face Value': 'Face Value'
-                }
+                title='Yield by Risk Level',
+                category_orders={"Risk Level": ["Very Low", "Low", "Medium", "High", "Very High"]}
             )
             st.plotly_chart(fig, use_container_width=True)
         
-        # Recommendation engine
-        st.subheader("💡 Investment Recommendations")
+        # Recommendation engine - Based on yield
+        st.subheader("💡 Yield-Based Recommendations")
         holding_period = st.slider(
             "Your planned holding period (years)",
             min_value=1,
@@ -265,18 +270,18 @@ def show_slips_dashboard(df):
                 hide_index=True
             )
             
-            # Generate allocation suggestion
+            # Generate allocation suggestion based on yield
             st.markdown("#### Suggested Allocation Strategy")
             allocation = rec_df.groupby('Industry')['Offer Yield'].mean().sort_values(ascending=False)
             st.write(f"Based on your {risk_tolerance.lower()} risk tolerance and {holding_period}-year horizon:")
-            st.write("- Allocate more to industries with higher yields")
-            st.write("- Consider laddering maturities for liquidity management")
+            st.write("- Prioritize industries with highest yields that match your risk profile")
+            st.write("- Consider yield curve positioning for your time horizon")
             
             fig = px.pie(
                 allocation,
                 names=allocation.index,
                 values=allocation.values,
-                title='Suggested Industry Allocation',
+                title='Suggested Industry Allocation by Yield',
                 hole=0.3
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -286,15 +291,15 @@ def show_slips_dashboard(df):
     else:
         st.warning("No bonds match your current filters. Try adjusting your criteria.")
 
-# FLIPS Dashboard
+# FLIPS Dashboard - Modified to focus on Offer Yield
 def show_flips_dashboard(df):
     st.header("🛡️ FLIPS Bonds Analysis")
     st.markdown("""
     **Flexible Liquidity Inflation-Protected Securities**  
-    Bonds designed to protect against inflation while providing liquidity options.
+    Bonds designed to provide competitive yields while protecting against inflation.
     """)
     
-    # FLIPS filters
+    # FLIPS filters - Focused on yield
     col1, col2, col3 = st.columns(3)
     with col1:
         inflation_adjusted = st.checkbox(
@@ -303,11 +308,11 @@ def show_flips_dashboard(df):
             key='flips_inflation'
         )
     with col2:
-        min_real_yield = st.slider(
-            "Minimum real yield (%)",
-            min_value=-2.0,
-            max_value=10.0,
-            value=1.0,
+        min_yield = st.slider(
+            "Minimum offer yield (%)",
+            min_value=0.0,
+            max_value=15.0,
+            value=3.0,
             step=0.1,
             key='flips_yield'
         )
@@ -319,9 +324,9 @@ def show_flips_dashboard(df):
             key='flips_liquidity'
         )
     
-    # Filter data (simulating inflation-adjusted bonds)
+    # Filter data - Primary filter is now Offer Yield
     filtered_df = df[
-        (df['Offer Yield'] >= min_real_yield/100)
+        (df['Offer Yield'] >= min_yield/100)
     ].copy()
     
     # Simulate inflation adjustment (in real app, would use actual CPI data)
@@ -341,23 +346,23 @@ def show_flips_dashboard(df):
     if inflation_adjusted:
         filtered_df = filtered_df[filtered_df['Special Feature'].str.contains('CPI|Inflation', case=False, na=False)]
     
-    # Display metrics
+    # Display metrics - Emphasizing yield metrics
     if not filtered_df.empty:
         st.subheader("📊 Portfolio Metrics")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Bonds", len(filtered_df))
-        m2.metric("Avg Nominal Yield", f"{filtered_df['Offer Yield'].mean():.2%}")
+        m2.metric("Avg Offer Yield", f"{filtered_df['Offer Yield'].mean():.2%}")
         m3.metric("Avg Real Yield", f"{filtered_df['Estimated Real Yield'].mean():.2%}")
         m4.metric("Avg Payment Freq", filtered_df['Interest Payment Frequency'].mode()[0])
         
-        # Interactive data table
+        # Interactive data table - Sorted by Offer Yield
         st.subheader("🧾 Available Bonds")
         show_columns = [
-            'ISIN', 'Issuer Name', 'Industry', 'Coupon', 'Offer Yield', 'Estimated Real Yield',
+            'ISIN', 'Issuer Name', 'Industry', 'Offer Yield', 'Estimated Real Yield', 'Coupon',
             'Years to Maturity', 'Credit Rating', 'Risk Level', 'Interest Payment Frequency', 'Face Value'
         ]
         st.dataframe(
-            filtered_df[show_columns].sort_values('Estimated Real Yield', ascending=False),
+            filtered_df[show_columns].sort_values('Offer Yield', ascending=False),
             column_config={
                 "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
                 "Offer Yield": st.column_config.NumberColumn(format="%.2f%%"),
@@ -369,17 +374,17 @@ def show_flips_dashboard(df):
             hide_index=True
         )
         
-        # Visualizations
-        st.subheader("📈 Inflation Protection Analysis")
-        tab1, tab2, tab3 = st.tabs(["Real Yield Distribution", "Maturity vs Yield", "Liquidity Profile"])
+        # Visualizations - Focused on yield analysis
+        st.subheader("📈 Yield Analysis")
+        tab1, tab2, tab3 = st.tabs(["Yield Distribution", "Maturity vs Yield", "Liquidity vs Yield"])
         
         with tab1:
             fig = px.histogram(
                 filtered_df,
-                x='Estimated Real Yield',
+                x='Offer Yield',
                 nbins=20,
-                title='Distribution of Real Yields',
-                labels={'Estimated Real Yield': 'Real Yield (%)'},
+                title='Distribution of Bond Yields',
+                labels={'Offer Yield': 'Yield (%)'},
                 color='Risk Level'
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -388,33 +393,31 @@ def show_flips_dashboard(df):
             fig = px.scatter(
                 filtered_df,
                 x='Years to Maturity',
-                y='Estimated Real Yield',
+                y='Offer Yield',
                 color='Risk Level',
                 size='Face Value',
                 hover_name='Issuer Name',
-                title='Real Yield vs Maturity',
+                title='Yield vs Maturity',
                 labels={
                     'Years to Maturity': 'Years to Maturity',
-                    'Estimated Real Yield': 'Real Yield (%)',
+                    'Offer Yield': 'Yield (%)',
                     'Face Value': 'Face Value'
                 }
             )
             st.plotly_chart(fig, use_container_width=True)
         
         with tab3:
-            freq_counts = filtered_df['Interest Payment Frequency'].value_counts().reset_index()
-            fig = px.bar(
-                freq_counts,
+            fig = px.box(
+                filtered_df,
                 x='Interest Payment Frequency',
-                y='count',
+                y='Offer Yield',
                 color='Interest Payment Frequency',
-                title='Payment Frequency Distribution',
-                labels={'count': 'Number of Bonds'}
+                title='Yield Distribution by Payment Frequency'
             )
             st.plotly_chart(fig, use_container_width=True)
         
-        # Recommendation engine
-        st.subheader("💡 Investment Recommendations")
+        # Recommendation engine - Based on yield
+        st.subheader("💡 Yield-Based Recommendations")
         holding_period = st.slider(
             "Your planned holding period (years)",
             min_value=1,
@@ -435,17 +438,17 @@ def show_flips_dashboard(df):
                 (filtered_df['Years to Maturity'] <= holding_period) &
                 (filtered_df['Risk Level'].isin(['Very Low', 'Low'])) &
                 (filtered_df['Interest Payment Frequency'].isin(['Monthly', 'Quarterly']))
-            ].sort_values(['Rating Category', 'Estimated Real Yield'], ascending=[True, False])
+            ].sort_values(['Rating Category', 'Offer Yield'], ascending=[True, False])
         elif risk_tolerance == "Moderate":
             rec_df = filtered_df[
                 (filtered_df['Years to Maturity'] <= holding_period + 3) &
                 (filtered_df['Risk Level'].isin(['Very Low', 'Low', 'Medium'])) &
                 (filtered_df['Interest Payment Frequency'] != 'On Maturity')
-            ].sort_values(['Rating Category', 'Estimated Real Yield'], ascending=[True, False])
+            ].sort_values(['Rating Category', 'Offer Yield'], ascending=[True, False])
         else:  # Aggressive
             rec_df = filtered_df[
                 (filtered_df['Years to Maturity'] <= holding_period + 5)
-            ].sort_values('Estimated Real Yield', ascending=False)
+            ].sort_values('Offer Yield', ascending=False)
         
         if not rec_df.empty:
             st.success(f"Recommended {len(rec_df)} bonds for your profile:")
@@ -462,28 +465,23 @@ def show_flips_dashboard(df):
                 hide_index=True
             )
             
-            # Generate allocation suggestion
+            # Generate allocation suggestion based on yield
             st.markdown("#### Suggested Allocation Strategy")
             st.write(f"Based on your {risk_tolerance.lower()} risk tolerance and {holding_period}-year horizon:")
-            
-            if inflation_adjusted:
-                st.write("- Focus on bonds with highest real yields")
-                st.write("- Consider shorter maturities if inflation expectations are volatile")
-            else:
-                st.write("- Diversify across nominal and inflation-linked bonds")
-                st.write("- Balance between yield and inflation protection")
+            st.write("- Focus on bonds with highest yields that match your risk profile")
+            st.write("- Balance between yield and inflation protection needs")
             
             fig = px.scatter(
                 rec_df,
                 x='Years to Maturity',
-                y='Estimated Real Yield',
+                y='Offer Yield',
                 color='Industry',
                 size='Face Value',
                 hover_name='Issuer Name',
-                title='Recommended Bonds by Industry',
+                title='Recommended Bonds by Yield and Maturity',
                 labels={
                     'Years to Maturity': 'Years to Maturity',
-                    'Estimated Real Yield': 'Real Yield (%)',
+                    'Offer Yield': 'Yield (%)',
                     'Face Value': 'Face Value'
                 }
             )

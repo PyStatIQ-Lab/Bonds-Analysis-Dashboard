@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 import plotly.express as px
 
 # Configure page
@@ -11,14 +11,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load data function with caching
+# Load data function with caching and error handling for dates
 @st.cache_data
-def load_data(uploaded_file):
+def load_data():
     try:
-        df = pd.read_excel(uploaded_file, sheet_name='Sheet1')
+        # Read the Excel file directly
+        df = pd.read_excel("Bonds_Data_2025.xlsx", sheet_name='Sheet1')
+        
+        # Handle the "9999-12-31" dates by replacing them with a far future but valid date
+        max_valid_date = pd.Timestamp.max - pd.Timedelta(days=1)  # Maximum valid pandas timestamp
         
         # Data cleaning and transformations
-        df['Redemption Date'] = pd.to_datetime(df['Redemption Date'])
+        df['Redemption Date'] = pd.to_datetime(
+            df['Redemption Date'].replace('9999-12-31 00:00:00', max_valid_date),
+            errors='coerce'
+        )
+        
         df['Coupon'] = pd.to_numeric(df['Coupon'], errors='coerce')
         df['Offer Yield'] = pd.to_numeric(df['Offer Yield'], errors='coerce')
         
@@ -46,11 +54,11 @@ def load_data(uploaded_file):
         choices = ['Very Low', 'Low', 'Medium', 'High', 'Very High']
         df['Risk Level'] = np.select(conditions, choices, default='Unknown')
         
-        # Create industry/sector categories (simplified for this example)
-        df['Industry'] = df['Issuer Name'].apply(lambda x: 'Finance' if 'FINANCE' in x.upper() 
-                                               else 'Infrastructure' if 'INFRA' in x.upper()
-                                               else 'Banking' if 'BANK' in x.upper()
-                                               else 'Government' if 'GOVERNMENT' in x.upper()
+        # Create industry/sector categories
+        df['Industry'] = df['Issuer Name'].apply(lambda x: 'Finance' if 'FINANCE' in str(x).upper() 
+                                               else 'Infrastructure' if 'INFRA' in str(x).upper()
+                                               else 'Banking' if 'BANK' in str(x).upper()
+                                               else 'Government' if 'GOVERNMENT' in str(x).upper()
                                                else 'Other')
         
         return df
@@ -67,15 +75,10 @@ def main():
     are specialized bond investment strategies designed for different market conditions.
     """)
     
-    # File upload
-    uploaded_file = st.sidebar.file_uploader("Upload Bonds Data (Excel)", type=['xlsx'])
-    if not uploaded_file:
-        st.warning("Please upload an Excel file with bonds data")
-        return
-    
-    df = load_data(uploaded_file)
+    # Load data
+    df = load_data()
     if df.empty:
-        st.error("No data loaded. Please check your file format.")
+        st.error("No data loaded. Please check your file format and ensure 'Bonds Data 2025.xlsx' is in the same directory.")
         return
     
     # Sidebar filters

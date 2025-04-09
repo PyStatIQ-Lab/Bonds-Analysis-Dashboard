@@ -5,6 +5,7 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import json
 
 # Set page config
 st.set_page_config(
@@ -69,61 +70,36 @@ st.markdown("""
 # Load the bond data
 @st.cache_data
 def load_data():
-    try:
-        # Read data from Excel file
-        df = pd.read_excel("Bonds_Data_2025.xlsx")
-        
-        # Check if required columns exist
-        required_columns = ['ISIN', 'Issuer Name', 'Coupon', 'Redemption Date', 
-                          'Face Value', 'Secured / Unsecured', 'Special Feature',
-                          'Total Qty', 'Total Qty FV', 'Offer Yield', 'Credit Rating']
-        
-        missing_cols = [col for col in required_columns if col not in df.columns]
-        if missing_cols:
-            st.error(f"Missing required columns in Excel file: {', '.join(missing_cols)}")
-            return pd.DataFrame()
-        
-        # Convert date strings to datetime objects with error handling
-        try:
-            df['Redemption Date'] = pd.to_datetime(df['Redemption Date'], dayfirst=True, errors='coerce')
-            # Replace far future dates with NaT
-            df.loc[df['Redemption Date'] > pd.Timestamp('2100-01-01'), 'Redemption Date'] = pd.NaT
-        except Exception as e:
-            st.error(f"Error processing dates: {str(e)}")
-            return pd.DataFrame()
-        
-        # Calculate days to maturity
-        today = datetime.now()
-        df['Days to Maturity'] = (df['Redemption Date'] - today).dt.days
-        df['Years to Maturity'] = df['Days to Maturity'] / 365
-        
-        # Create a function to categorize bonds as SLIPS or FLIPS
-        def categorize_bond(row):
-            if pd.isna(row['Special Feature']):
-                return "SLIPS"
-            if "CPI" in str(row['Special Feature']) or "inflation" in str(row['Special Feature']):
-                return "FLIPS"
+    # Load data from JSON file
+    with open('bonds_data.json', 'r') as f:
+        data = json.load(f)
+    
+    df = pd.DataFrame(data)
+    
+    # Convert date strings to datetime objects
+    df['Redemption Date'] = pd.to_datetime(df['Redemption Date'])
+    
+    # Calculate days to maturity
+    today = datetime.now()
+    df['Days to Maturity'] = (df['Redemption Date'] - today).dt.days
+    df['Years to Maturity'] = df['Days to Maturity'] / 365
+    
+    # Create a function to categorize bonds as SLIPS or FLIPS
+    def categorize_bond(row):
+        if "CPI" in str(row['Special Feature']) or "inflation" in str(row['Special Feature']):
+            return "FLIPS"
+        else:
             return "SLIPS"
 
-        df['Bond Type'] = df.apply(categorize_bond, axis=1)
-        
-        # Calculate additional metrics
-        df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'].fillna(0) * df['Years to Maturity'].fillna(0))
-        
-        return df
+    df['Bond Type'] = df.apply(categorize_bond, axis=1)
     
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return pd.DataFrame(columns=required_columns)  # Return empty DataFrame with required columns
+    # Calculate additional metrics
+    df['Total Value'] = df['Total Qty FV'] * (1 + df['Coupon'] * df['Years to Maturity'])
+    
+    return df
 
 df = load_data()
 
-# Check if DataFrame is empty before proceeding
-if df.empty:
-    st.error("No data loaded. Please check the Excel file and try again.")
-    st.stop()  # This will halt the app execution
-
-# Rest of your code remains the same...
 # Dashboard Header
 st.markdown('<p class="header-text">SLIPS & FLIPS Bonds Dashboard</p>', unsafe_allow_html=True)
 st.markdown('<p class="subheader-text">Comprehensive analysis of available structured bonds with inflation protection features</p>', unsafe_allow_html=True)
